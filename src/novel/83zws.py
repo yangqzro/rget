@@ -1,19 +1,36 @@
 import os
 import platform
 from concurrent.futures import ThreadPoolExecutor
-import multiprocessing
-import random
 import re
-from typing import Callable, List, Tuple
+import threading
+from typing import Callable, List, Tuple, TypeVar, TypeVarTuple
 import requests
 from bs4 import BeautifulSoup
-import time
 
 href: str = 'https://www.83zws.com'
 
+TaskParams = TypeVarTuple("TaskParams")
+TaskResult = TypeVar("TaskResult")
 
-def get_html(url: str) -> str:
-    return requests.get(url).text
+
+class ConControl:
+    def __init__(self, max_concurrent: int):
+        self._semaphore = threading.Semaphore(max_concurrent)
+
+    def call(self, callback: Callable[[*TaskParams], TaskResult], *args: *TaskParams) -> TaskResult:
+        with self._semaphore:
+            return callback(*args)
+
+
+class Http:
+    def __init__(self):
+        self._session = requests.Session()
+
+    def get(self, url: str) -> str:
+        return self._session.get(url).text
+
+
+http = Http()
 
 
 def get_download_dir() -> str:
@@ -29,13 +46,13 @@ def get_chapters(href: str, book_url: str) -> Tuple[str, List[Tuple[str, str]]]:
         t = handler(text)
         if not t:
             return t, False
-        elif not re.compile(r'第\s*[0-9一二三四五六七八九十]+\s*章').match(t):
+        elif not re.compile(r'(第\s*[0-9一二三四五六七八九十]+\s*章|番外|\d+)').match(t):
             return t, False
         else:
             return t, True
 
     url = f'{href}{book_url}'
-    soup = BeautifulSoup(get_html(url), 'html.parser')
+    soup = BeautifulSoup(http.get(url), 'html.parser')
     title = soup.select_one('div#info h1').text.strip()
 
     chapters: List[Tuple[str, str]] = []
@@ -63,7 +80,7 @@ def get_chapter_content(href: str, chapter: Tuple[str, str]) -> str:
 
     def get_content(href: str, chapter_url: str) -> List[str]:
         url = f'{href}{chapter_url}'
-        soup = BeautifulSoup(get_html(url), 'html.parser')
+        soup = BeautifulSoup(http.get(url), 'html.parser')
         content: List[str] = []
         for c in soup.select_one('div#content div#booktxt'):
             t, ok = whether_to_append(c.text, lambda x: x.strip())
@@ -86,19 +103,20 @@ def get_chapter_content(href: str, chapter: Tuple[str, str]) -> str:
 
 def task(href: str, chapter: Tuple[str, str]) -> str:
     chapter_name, chapter_url = chapter
-    print(f'crawling {chapter_name}: {href}{chapter_url} ...')
-    time.sleep(random.uniform(1, 3))
     content = get_chapter_content(href, chapter)
+    print(f'crawled {chapter_name}: {href}{chapter_url} ...')
     return content
 
 
 def main(book_url: str):
     title, chapters = get_chapters(href, book_url)
 
-    cpu_cores = multiprocessing.cpu_count()
-    with ThreadPoolExecutor(max_workers=cpu_cores * 2) as executor:
-        futures = [executor.submit(task, href, chapter) for chapter in chapters]
-        with open(f'{get_download_dir()}/{title}.txt', 'w', encoding='utf-8') as f:
+    cpu_cores = os.cpu_count()
+    cc = ConControl(8)
+    with ThreadPoolExecutor(max_workers=cpu_cores + 4) as executor:
+        futures = [executor.submit(cc.call, task, href, chapter)
+                   for chapter in chapters]
+        with open(os.path.join(get_download_dir(), f"{title}.txt"), 'w', encoding='utf-8') as f:
             for future in futures:
                 f.write(future.result())
 
