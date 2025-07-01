@@ -42,7 +42,7 @@ def get_download_dir() -> str:
 
 
 def get_chapters(href: str, book_url: str) -> Tuple[str, List[Tuple[str, str]]]:
-    def whether_to_append(text: str, handler: Callable[[str], bool]) -> Tuple[str, bool]:
+    def whether_to_append(text: str, handler: Callable[[str], str]) -> Tuple[str, bool]:
         t = handler(text)
         if not t:
             return t, False
@@ -67,7 +67,7 @@ def get_chapters(href: str, book_url: str) -> Tuple[str, List[Tuple[str, str]]]:
 def get_chapter_content(href: str, chapter: Tuple[str, str]) -> str:
     chapter_name, chapter_url = chapter
 
-    def whether_to_append(text: str, handler: Callable[[str], bool]) -> Tuple[str, bool]:
+    def whether_to_append(text: str, handler: Callable[[str], str]) -> Tuple[str, bool]:
         t = handler(text)
         if not t:
             return t, False
@@ -89,13 +89,8 @@ def get_chapter_content(href: str, chapter: Tuple[str, str]) -> str:
 
         a = soup.select_one('a#next_url')
         has_next, next_url = '下一页' in a.text.strip(), a.attrs.get('href')
-        if not has_next:
-            return content
-
-        for n in get_content(href, next_url):
-            t, ok = whether_to_append(n, lambda x: x.strip())
-            if ok:
-                content.append(t)
+        if has_next:
+            content.extend(get_content(href, next_url))
         return content
 
     return '\n'.join([chapter_name] + get_content(href, chapter_url)) + '\n\n'
