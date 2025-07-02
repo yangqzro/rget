@@ -1,4 +1,4 @@
-from novel.zws import crawl
+from novel.qidian import crawl
 
 if __name__ == "__main__":
-    crawl(0, 0)
+    crawl(0)
