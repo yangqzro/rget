@@ -1,0 +1,12 @@
+[tool.black]
+line-length = 120
+exclude = '''
+/(
+    migrations
+    | venv
+    | build
+    | dist
+)/
+'''
+preview = true
+target-version = ["py313"]
