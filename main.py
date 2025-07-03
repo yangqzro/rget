@@ -1,4 +1,4 @@
-from novel.qidian import crawl
+from novel.ciweimao import crawl
 
 if __name__ == "__main__":
-    crawl(0)
+    crawl(100424595)

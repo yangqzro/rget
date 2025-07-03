@@ -1,0 +1,17 @@
+{
+  "name": "codecs-server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "crypto-js": "^4.2.0",
+    "express": "^5.1.0",
+    "koa": "^3.0.0"
+  }
+}

@@ -9,6 +9,8 @@ Result = TypeVar("Result")
 
 class ConScheduler:
     def __init__(self, max_task_concurrent: int = 8, max_workers: int = os.cpu_count() + 4):
+        if max_task_concurrent > max_workers:
+            max_task_concurrent = max_workers
         self.__semaphore = threading.Semaphore(max_task_concurrent)
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
 
